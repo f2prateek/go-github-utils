@@ -32,14 +32,24 @@ func Filter(in <-chan github.Repository, in_errc <-chan error,
 	errc := make(chan error, 1)
 
 	go func() {
+		var wg sync.WaitGroup
+
 		for r := range in {
-			if m(r) {
-				out <- r
-			}
+			wg.Add(1)
+			go func(r github.Repository) {
+				defer wg.Done()
+				if m(r) {
+					out <- r
+				}
+			}(r)
 		}
 
 		errc <- <-in_errc
-		close(out)
+
+		go func() {
+			wg.Wait()
+			close(out)
+		}()
 	}()
 
 	return out, errc

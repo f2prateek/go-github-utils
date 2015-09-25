@@ -16,7 +16,7 @@ func main() {
 		log.Fatal("$GITHUB_TOKEN is required")
 	}
 
-	done := make(chan struct{}, 2)
+	done := make(chan struct{}, 1)
 	defer close(done)
 
 	g := githubu.WithToken(token)
