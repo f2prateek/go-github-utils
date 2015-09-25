@@ -25,8 +25,8 @@ func WithClient(client *github.Client) *Client {
 }
 
 // Emit repos from channel `in` to `out` if `m` returns true.
-func Filter(done <-chan struct{}, in <-chan github.Repository,
-	m func(github.Repository) bool) (<-chan github.Repository,
+func Filter(in <-chan github.Repository, in_errc <-chan error,
+	m func(r github.Repository) bool) (<-chan github.Repository,
 	<-chan error) {
 	out := make(chan github.Repository)
 	errc := make(chan error, 1)
@@ -37,7 +37,8 @@ func Filter(done <-chan struct{}, in <-chan github.Repository,
 				out <- r
 			}
 		}
-		errc <- nil
+
+		errc <- <-in_errc
 		close(out)
 	}()
 
@@ -46,7 +47,7 @@ func Filter(done <-chan struct{}, in <-chan github.Repository,
 
 // GenerateRepos finds repositories for `org` and emits it on a channel unless
 // signalled to stop on `done`.
-func (g *Client) GenerateRepos(done <-chan struct{},
+func (client *Client) GenerateRepos(done <-chan struct{},
 	org string) (<-chan github.Repository, <-chan error) {
 	c := make(chan github.Repository)
 	errc := make(chan error, 1)
@@ -66,7 +67,7 @@ func (g *Client) GenerateRepos(done <-chan struct{},
 			default:
 			}
 
-			newRepos, resp, err := g.Repositories.ListByOrg(org, opt)
+			newRepos, resp, err := client.Repositories.ListByOrg(org, opt)
 			if err != nil {
 				errc <- err
 				break

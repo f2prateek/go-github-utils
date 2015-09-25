@@ -24,20 +24,17 @@ func main() {
 	filter := regexp.MustCompile("(analytics-)?integration-.*")
 
 	c1, errc1 := g.GenerateRepos(done, "segmentio")
-	c2, errc2 := githubu.Filter(done, c1, func(r github.Repository) bool {
+	c, errc := githubu.Filter(c1, errc1, func(r github.Repository) bool {
 		return filter.MatchString(*r.Name)
 	})
 
 	count := 0
-	for r := range c2 {
+	for r := range c {
 		count = count + 1
-		fmt.Printf("%d\t%s\n", count, *r.Name)
+		fmt.Printf("%d:\t%s\n", count, *r.Name)
 	}
 
-	if err := <-errc1; err != nil {
-		log.Fatal(err)
-	}
-	if err := <-errc2; err != nil {
+	if err := <-errc; err != nil {
 		log.Fatal(err)
 	}
 }
