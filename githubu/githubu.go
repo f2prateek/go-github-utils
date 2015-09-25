@@ -24,6 +24,26 @@ func WithClient(client *github.Client) *Client {
 	return &Client{client}
 }
 
+// Emit repos from channel `in` to `out` if `m` returns true.
+func Filter(done <-chan struct{}, in <-chan github.Repository,
+	m func(github.Repository) bool) (<-chan github.Repository,
+	<-chan error) {
+	out := make(chan github.Repository)
+	errc := make(chan error, 1)
+
+	go func() {
+		for r := range in {
+			if m(r) {
+				out <- r
+			}
+		}
+		errc <- nil
+		close(out)
+	}()
+
+	return out, errc
+}
+
 // GenerateRepos finds repositories for `org` and emits it on a channel unless
 // signalled to stop on `done`.
 func (g *Client) GenerateRepos(done <-chan struct{},
