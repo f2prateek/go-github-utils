@@ -111,3 +111,59 @@ func (client *Client) GenerateRepos(done <-chan struct{},
 
 	return c, errc
 }
+
+// GenerateCommits finds commits for `org`/`repo` and emits it on a channel unless
+// signalled to stop on `done`.
+func (client *Client) GenerateCommits(done <-chan struct{},
+	org, repo string) (<-chan github.RepositoryCommit, <-chan error) {
+	c := make(chan github.RepositoryCommit)
+	errc := make(chan error, 1)
+
+	go func() {
+		var wg sync.WaitGroup
+
+		opt := &github.CommitsListOptions{
+			ListOptions: github.ListOptions{PerPage: 1},
+		}
+
+		for {
+			select {
+			case <-done:
+				break
+			default:
+			}
+
+			newCommits, resp, err := client.Repositories.ListCommits(org, repo, opt)
+			if err != nil {
+				errc <- err
+				break
+			}
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for _, commit := range newCommits {
+					select {
+					case c <- commit:
+					case <-done:
+						break
+					}
+				}
+			}()
+
+			if resp.NextPage == 0 {
+				errc <- nil
+				break
+			}
+
+			opt.ListOptions.Page = resp.NextPage
+		}
+
+		go func() {
+			wg.Wait()
+			close(c)
+		}()
+	}()
+
+	return c, errc
+}
